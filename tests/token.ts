@@ -320,7 +320,7 @@ describe("Token Lottery Program",async () => {
           [wallet.payer]
         );
         console.log("das",signature);
-      } catch (error) {
+      } catch (error) { 
         console.log("Switchboard integration error:", error.message);
       }
     });
