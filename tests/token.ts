@@ -301,7 +301,25 @@ describe("Token Lottery Program",async () => {
           "  Transaction Signature for randomness account creation: ",
           sig1
         );
-        
+        const commitran=await randomness.commitIx(queueAccount.pubkey)
+        const commitrandomness=await program.methods.commitRandomness().accountsStrict({
+          randomnessAccount:randomness.pubkey,
+          tokenLottery:tokenLotteryPDA,
+          payer:wallet.publicKey
+        }).instruction();
+
+        const blockhash = await provider.connection.getLatestBlockhash();
+        const tx = new anchor.web3.Transaction({
+          blockhash: blockhash.blockhash,
+          feePayer: wallet.publicKey,
+          lastValidBlockHeight: blockhash.lastValidBlockHeight
+        }).add(commitrandomness).add(computeTx).add(priortiytx).add(commitran);
+        const signature = await anchor.web3.sendAndConfirmTransaction(
+          provider.connection,
+          tx,
+          [wallet.payer]
+        );
+        console.log("das",signature);
       } catch (error) {
         console.log("Switchboard integration error:", error.message);
       }
