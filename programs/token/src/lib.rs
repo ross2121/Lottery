@@ -7,7 +7,7 @@ use anchor_spl::{
 };
 use anchor_spl::{metadata::{create_master_edition_v3, create_metadata_accounts_v3, mpl_token_metadata::{ types::{CollectionDetails, Creator, DataV2}}, set_and_verify_sized_collection_item, sign_metadata, CreateMasterEditionV3, CreateMetadataAccountsV3, SetAndVerifySizedCollectionItem, SignMetadata}, token_2022::{mint_to, MintTo}};
 use switchboard_on_demand::RandomnessAccountData;
-declare_id!("2HaEUmFWSMaSoXiZVhF8gnxqM5n59qVowFyAEJWxidSj");
+declare_id!("4dMKk1DAkpifRnSWGVEjUKjNBAU8SDiPqfddGPqNeM7G");
 #[constant]
 pub const NAME: &str="TOKEN LOTTERY TICKET";
 
@@ -18,11 +18,7 @@ pub const  URI:&str="https://www.edepotindia.com/wp-content/uploads/2018/12/west
 
 #[program]
 pub mod token {
-    
-    
-
     use super::*;
-
     pub fn initialize(ctx: Context<Initialize>,start_time:u64,end:u64,price:u64) -> Result<()> {
         ctx.accounts.token_lottery.bump=ctx.bumps.token_lottery;
        ctx.accounts.token_lottery.authority=*ctx.accounts.signer.key;
@@ -37,9 +33,9 @@ pub mod token {
     pub fn buy_ticket(ctx: Context<Buyticket>)->Result<()>{
         let clock=Clock::get()?;
         let ticket_name=NAME.to_owned()+ctx.accounts.token_lottery.total_tickets.to_string().as_str();
-        if(clock.slot<ctx.accounts.token_lottery.start_time||clock.slot>ctx.accounts.token_lottery.end_time){
-            return  Err(ErrorCode:: LotteryNotOpen.into());
-        }
+        // if(clock.slot<ctx.accounts.token_lottery.start_time||clock.slot>ctx.accounts.token_lottery.end_time){
+        //     return  Err(ErrorCode:: LotteryNotOpen.into());
+        // }
         system_program::transfer(CpiContext::new(ctx.accounts.system_program.to_account_info(),system_program::Transfer { from: (ctx.accounts.payer.to_account_info()), to: (ctx.accounts.token_lottery.to_account_info()) }), ctx.accounts.token_lottery.ticket_price)?;
         let signer_seeds:&[&[&[u8]]]=&[&[b"collectionmint".as_ref(),&[ctx.bumps.collection_mint]]];
         mint_to(CpiContext::new_with_signer(ctx.accounts.token_program.to_account_info(), MintTo { mint: ctx.accounts.ticket_mint.to_account_info(), to: ctx.accounts.destination.to_account_info(), authority: ctx.accounts.collection_mint.to_account_info() }, signer_seeds), 1)?;

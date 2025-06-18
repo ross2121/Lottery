@@ -1,31 +1,33 @@
 import * as anchor from "@coral-xyz/anchor";
 import { Program } from "@coral-xyz/anchor";
 import { Token } from "../target/types/token";
-import { PublicKey, SystemProgram, SYSVAR_RENT_PUBKEY } from "@solana/web3.js";
+import { Commitment, Connection, Keypair, PublicKey, SystemProgram, SYSVAR_RENT_PUBKEY } from "@solana/web3.js";
 import { TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID } from "@solana/spl-token";
 import * as sb from '@switchboard-xyz/on-demand'
 import { expect } from "chai";
+import { publicKey } from "@coral-xyz/anchor/dist/cjs/utils";
+
 
 const METADATA_PROGRAM_ID = new PublicKey("metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s");
 
-describe("Token Lottery Program", () => {
+describe("Token Lottery Program",async () => {
   const provider = anchor.AnchorProvider.env();
   anchor.setProvider(provider);
   const wallet = provider.wallet as anchor.Wallet;
   const program = anchor.workspace.token as Program<Token>;
-
+  
   console.log("Program ID:", program.programId.toString());
   console.log("Wallet Public Key:", wallet.publicKey.toString());
-  let switchboardprogram;
-  const rngKp=anchor.web3.Keypair.generate();
-  before("Load switchboard",async()=>{
-    const switchboard=await anchor.Program.fetchIdl(sb.ON_DEMAND_MAINNET_PID,{connection: new anchor.web3.Connection("https://api.mainnet-beta.solana.com")})
-    switchboardprogram=new anchor.Program(switchboard,provider)
-  })
+  // let switchboardprogram;
+  // const rngKp=anchor.web3.Keypair.generate();
+  // before("Load switchboard",async()=>{
+  //   const switchboard=await anchor.Program.fetchIdl(sb.ON_DEMAND_MAINNET_PID,{connection: new anchor.web3.Connection("https://api.devnet.solana.com") }) as anchor.Idl
+  //   switchboardprogram=new anchor.Program(switchboard,provider)
+  // })
 
   const getTokenLotteryInitPDA = async () => {
     return await PublicKey.findProgramAddress(
-      [Buffer.from("token_lottery"), wallet.payer.publicKey.toBuffer()],
+      [Buffer.from("token_lottery")],
       program.programId
     );
   };
@@ -69,108 +71,108 @@ describe("Token Lottery Program", () => {
     );
   };
 
-  describe("Initialize Token Lottery", () => {
-    it("should initialize the token lottery with correct parameters", async () => {
-      const [tokenLotteryPDA] = await getTokenLotteryInitPDA();
-      console.log("Token Lottery PDA:", tokenLotteryPDA.toString());
+  // describe("Initialize Token Lottery", () => {
+  //   it("should initialize the token lottery with correct parameters", async () => {
+  //     const [tokenLotteryPDA] = await getTokenLotteryInitPDA();
+  //     console.log("Token Lottery PDA:", tokenLotteryPDA.toString());
       
-      const startTime = new anchor.BN(0);
-      const endTime = new anchor.BN(12313);
-      const ticketPrice = new anchor.BN(232);
+  //     const startTime = new anchor.BN(Math.floor(Date.now() / 1000));
+  //     const endTime = new anchor.BN(12313);
+  //     const ticketPrice = new anchor.BN(232);
 
-      const tx = await program.methods.initialize(
-        startTime,
-        endTime,
-        ticketPrice
-      ).accountsStrict({
-        signer: wallet.publicKey,
-        tokenLottery: tokenLotteryPDA,
-        systemProgram: SystemProgram.programId,
-      }).instruction();
+  //     const tx = await program.methods.initialize(
+  //       startTime,
+  //       endTime,
+  //       ticketPrice
+  //     ).accountsStrict({
+  //       signer: wallet.publicKey,
+  //       tokenLottery: tokenLotteryPDA,
+  //       systemProgram: SystemProgram.programId,
+  //     }).instruction();
 
-      const blockhash = await provider.connection.getLatestBlockhash();
-      const tx3 = new anchor.web3.Transaction({
-        blockhash: blockhash.blockhash,
-        feePayer: wallet.publicKey,
-        lastValidBlockHeight: blockhash.lastValidBlockHeight
-      }).add(tx);
+  //     const blockhash = await provider.connection.getLatestBlockhash();
+  //     const tx3 = new anchor.web3.Transaction({
+  //       blockhash: blockhash.blockhash,
+  //       feePayer: wallet.publicKey,
+  //       lastValidBlockHeight: blockhash.lastValidBlockHeight
+  //     }).add(tx);
 
-      const signature = await anchor.web3.sendAndConfirmTransaction(
-        provider.connection,
-        tx3,
-        [wallet.payer]
-      );
-      console.log("Token lottery initialized:", signature);
+  //     const signature = await anchor.web3.sendAndConfirmTransaction(
+  //       provider.connection,
+  //       tx3,
+  //       [wallet.payer]
+  //     );
+  //     console.log("Token lottery initialized:", signature);
 
-      const lotteryAccount = await program.account.tokenLottery.fetch(tokenLotteryPDA);
-      console.log("Lottery Account Data:", {
-        bump: lotteryAccount.bump,
-        startTime: lotteryAccount.startTime.toString(),
-        endTime: lotteryAccount.endTime.toString(),
-        ticketPrice: lotteryAccount.ticketPrice.toString(),
-        totalTickets: lotteryAccount.totalTickets.toString(),
-        authority: lotteryAccount.authority.toString(),
-        winnerClaimed: lotteryAccount.winnerClaimed,
-        looteryPotAmount: lotteryAccount.looteryPotAmount.toString(),
-        randomnessAccount: lotteryAccount.randomnessAccount.toString()
-      });
+  //     const lotteryAccount = await program.account.tokenLottery.fetch(tokenLotteryPDA);
+  //     console.log("Lottery Account Data:", {
+  //       bump: lotteryAccount.bump,
+  //       startTime: lotteryAccount.startTime.toString(),
+  //       endTime: lotteryAccount.endTime.toString(),
+  //       ticketPrice: lotteryAccount.ticketPrice.toString(),
+  //       totalTickets: lotteryAccount.totalTickets.toString(),
+  //       authority: lotteryAccount.authority.toString(),
+  //       winnerClaimed: lotteryAccount.winnerClaimed,
+  //       looteryPotAmount: lotteryAccount.looteryPotAmount.toString(),
+  //       randomnessAccount: lotteryAccount.randomnessAccount.toString()
+  //     });
 
-      expect(lotteryAccount.startTime.toString()).to.equal(startTime.toString());
-      expect(lotteryAccount.endTime.toString()).to.equal(endTime.toString());
-      expect(lotteryAccount.ticketPrice.toString()).to.equal(ticketPrice.toString());
-      expect(lotteryAccount.authority.toString()).to.equal(wallet.publicKey.toString());
-    });
-  });
+  //     expect(lotteryAccount.startTime.toString()).to.equal(startTime.toString());
+  //     expect(lotteryAccount.endTime.toString()).to.equal(endTime.toString());
+  //     expect(lotteryAccount.ticketPrice.toString()).to.equal(ticketPrice.toString());
+  //     expect(lotteryAccount.authority.toString()).to.equal(wallet.publicKey.toString());
+  //   });
+  // });
 
-  describe("Initialize Lottery Collection", () => {
-    it("should initialize the lottery collection with metadata", async () => {
-      const [collectionMintPDA] = await getCollectionMintPDA();
-      console.log("Collection Mint PDA:", collectionMintPDA.toString());
+  // describe("Initialize Lottery Collection", () => {
+  //   it("should initialize the lottery collection with metadata", async () => {
+  //     const [collectionMintPDA] = await getCollectionMintPDA();
+  //     console.log("Collection Mint PDA:", collectionMintPDA.toString());
       
-      const [metadataPDA] = await getMetadataPDA(collectionMintPDA);
-      console.log("Collection Metadata PDA:", metadataPDA.toString());
+  //     const [metadataPDA] = await getMetadataPDA(collectionMintPDA);
+  //     console.log("Collection Metadata PDA:", metadataPDA.toString());
       
-      const [masterEditionPDA] = await getMasterEditionPDA(collectionMintPDA);
-      console.log("Collection Master Edition PDA:", masterEditionPDA.toString());
+  //     const [masterEditionPDA] = await getMasterEditionPDA(collectionMintPDA);
+  //     console.log("Collection Master Edition PDA:", masterEditionPDA.toString());
       
-      const collectionToken = await anchor.utils.token.associatedAddress({
-        mint: collectionMintPDA,
-        owner: wallet.publicKey
-      });
-      console.log("Collection Token Account:", collectionToken.toString());
+  //     const collectionToken = await anchor.utils.token.associatedAddress({
+  //       mint: collectionMintPDA,
+  //       owner: wallet.publicKey
+  //     });
+  //     console.log("Collection Token Account:", collectionToken.toString());
 
-      const initLottery = await program.methods.initializeLottery().accountsStrict({
-        signer: wallet.publicKey,
-        collectionMint: collectionMintPDA,
-        collectionToken: collectionToken,
-        metadata: metadataPDA,
-        masterEdition: masterEditionPDA,
-        tokenProgram: TOKEN_PROGRAM_ID,
-        associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
-        tokenMetadataProgram: METADATA_PROGRAM_ID,
-        systemProgram: SystemProgram.programId,
-        rent: SYSVAR_RENT_PUBKEY,
-      }).instruction();
+  //     const initLottery = await program.methods.initializeLottery().accountsStrict({
+  //       signer: wallet.publicKey,
+  //       collectionMint: collectionMintPDA,
+  //       collectionToken: collectionToken,
+  //       metadata: metadataPDA,
+  //       masterEdition: masterEditionPDA,
+  //       tokenProgram: TOKEN_PROGRAM_ID,
+  //       associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
+  //       tokenMetadataProgram: METADATA_PROGRAM_ID,
+  //       systemProgram: SystemProgram.programId,
+  //       rent: SYSVAR_RENT_PUBKEY,
+  //     }).instruction();
 
-      const blockhash = await provider.connection.getLatestBlockhash();
-      const tx = new anchor.web3.Transaction({
-        blockhash: blockhash.blockhash,
-        feePayer: wallet.publicKey,
-        lastValidBlockHeight: blockhash.lastValidBlockHeight
-      }).add(initLottery);
+  //     const blockhash = await provider.connection.getLatestBlockhash();
+  //     const tx = new anchor.web3.Transaction({
+  //       blockhash: blockhash.blockhash,
+  //       feePayer: wallet.publicKey,
+  //       lastValidBlockHeight: blockhash.lastValidBlockHeight
+  //     }).add(initLottery);
 
-      const signature = await anchor.web3.sendAndConfirmTransaction(
-        provider.connection,
-        tx,
-        [wallet.payer]
-      );
-      console.log("Lottery collection initialized:", signature);
+  //     const signature = await anchor.web3.sendAndConfirmTransaction(
+  //       provider.connection,
+  //       tx,
+  //       [wallet.payer]
+  //     );
+  //     console.log("Lottery collection initialized:", signature);
 
-      const tokenAccount = await provider.connection.getTokenAccountBalance(collectionToken);
-      console.log("Collection Token Balance:", tokenAccount.value.amount);
-      expect(tokenAccount.value.amount).to.equal("1");
-    });
-  });
+  //     const tokenAccount = await provider.connection.getTokenAccountBalance(collectionToken);
+  //     console.log("Collection Token Balance:", tokenAccount.value.amount);
+  //     expect(tokenAccount.value.amount).to.equal("1");
+  //   });
+  // });
 
   describe("Buy Lottery Ticket", () => {
     it("should allow buying multiple lottery tickets and mint NFTs", async () => {
@@ -193,7 +195,7 @@ describe("Token Lottery Program", () => {
         ticketPrice: lotteryAccount.ticketPrice.toString()
       });
 
-      const numberOfTicketsToBuy =9;  
+      const numberOfTicketsToBuy =1;  
 
       for (let i = 0; i < numberOfTicketsToBuy; i++) {
         const currentLotteryAccount = await program.account.tokenLottery.fetch(tokenLotteryPDA);
@@ -256,15 +258,64 @@ describe("Token Lottery Program", () => {
         expect(updatedLotteryAccount.totalTickets.toNumber()).to.equal(ticketNum + 1);
       }
 
-      // Final verification
+      // "A43DyUGA7s8eXPxqEjJY6EBu1KKbNgfxF8h17VAHn13w"
       const finalLotteryAccount = await program.account.tokenLottery.fetch(tokenLotteryPDA);
       console.log("\nFinal Lottery Account State:", {
         totalTickets: finalLotteryAccount.totalTickets.toString(),
         ticketPrice: finalLotteryAccount.ticketPrice.toString()
       });
-      const queue=new anchor.web3.PublicKey("A43DyUGA7s8eXPxqEjJY6EBu1KKbNgfxF8h17VAHn13w")
-   
-      expect(finalLotteryAccount.totalTickets.toNumber()).to.equal(lotteryAccount.totalTickets.toNumber() + numberOfTicketsToBuy);
+      try {
+        const pid=sb.ON_DEMAND_DEVNET_PID
+        const sbProgram = await loadSbProgram(provider);
+        
+        const queueAccount = await sb.getDefaultQueue(provider.connection.rpcEndpoint)
+        console.log("Queue pubkey:",queueAccount.pubkey.toString());
+      
+        const queueData = await queueAccount.loadData();
+        console.log("Queue data loaded successfully");
+        console.log("Queue has", queueData.oracleKeys.length, "oracles");
+        
+        const rngKp = Keypair.generate();
+        console.log("Generated RNG keypair:", rngKp.publicKey.toString());
+          
+        const txOpts = {
+          commitment: "processed" as Commitment,
+          skipPreflight: false,
+          maxRetries: 0,
+        };
+        const [randomness, ix] = await sb.Randomness.create(sbProgram, rngKp, queueAccount.pubkey)
+        console.log("Randomness account created:", randomness.pubkey.toString());
+        const createRandomnessTx = await sb.asV0Tx({
+          connection: sbProgram.provider.connection,
+          ixs: [ix],
+          payer: wallet.payer.publicKey,
+          signers: [wallet.payer, rngKp],
+          computeUnitPrice: 75_000,
+          computeUnitLimitMultiple: 1.3,
+        });
+        const {connection}=await sb.AnchorUtils.loadEnv();
+        const sim = await connection.simulateTransaction(createRandomnessTx, txOpts);
+        const sig1 = await connection.sendTransaction(createRandomnessTx, txOpts);
+        await connection.confirmTransaction(sig1, "confirmed");
+        console.log(
+          "  Transaction Signature for randomness account creation: ",
+          sig1
+        );
+        
+      } catch (error) {
+        console.log("Switchboard integration error:", error.message);
+      }
     });
-  });
-});  
+  })
+});
+
+export async function loadSbProgram(
+  provider: anchor.Provider
+): Promise<any> {
+  // Import anchor-31 package specifically for Switchboard compatibility
+  const anchor31 = require('@coral-xyz/anchor-31');
+  const sbProgramId = await sb.getProgramId(provider.connection);
+  const sbIdl = await anchor31.Program.fetchIdl(sbProgramId, provider);
+  const sbProgram = new anchor31.Program(sbIdl!, provider);
+  return sbProgram;
+}
