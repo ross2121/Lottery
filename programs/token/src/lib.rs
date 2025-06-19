@@ -22,20 +22,24 @@ pub mod token {
     use std::fs::read_to_string;
 
     use super::*;
-    pub fn initialize(ctx: Context<Initialize>,start_time:u64,end:u64,price:u64) -> Result<()> {
+    pub fn initialize(ctx: Context<Initialize>,start_time:u64,end:u64,price:u64,lottery_id:[u8; 32]) -> Result<()> {
         ctx.accounts.token_lottery.bump=ctx.bumps.token_lottery;
        ctx.accounts.token_lottery.authority=*ctx.accounts.signer.key;
       ctx.accounts.token_lottery.end_time=end;
       ctx.accounts.token_lottery.start_time=start_time;
       ctx.accounts.token_lottery.ticket_price=price;
-      ctx.accounts.token_lottery.winner_choosen=false;
+      ctx.accounts.token_lottery.winner = 0;
+      ctx.accounts.token_lottery.total_tickets = 0; 
+    //   ctx.accounts.token_lottery.lottery_id=lottery_id;
+      ctx.accounts.token_lottery.lootery_pot_amount = 0;
+      ctx.accounts.token_lottery.winner_claimed=false;
       ctx.accounts.token_lottery.randomness_account=Pubkey::default();
-        msg!("Greetings from: {:?}", ctx.program_id);
         Ok(())
     }
     pub fn buy_ticket(ctx: Context<Buyticket>)->Result<()>{
         let clock=Clock::get()?;
         let ticket_name=NAME.to_owned()+ctx.accounts.token_lottery.total_tickets.to_string().as_str();
+        ctx.accounts.token_lottery.winner = 0;
         // if(clock.slot<ctx.accounts.token_lottery.start_time||clock.slot>ctx.accounts.token_lottery.end_time){
         //     return  Err(ErrorCode:: LotteryNotOpen.into());
         // }
@@ -108,16 +112,16 @@ pub mod token {
         require!(ctx.accounts.payer.key()==token_lottery.authority,ErrorCode::Notauthorized);
         require!(ctx.accounts.randomness_account.key()==token_lottery.randomness_account,ErrorCode::IncorrectRandomness);
         require!(clock.slot<token_lottery.end_time,ErrorCode::Lotterynotcompleted);
-        require!(!token_lottery.winner_choosen,ErrorCode::Winnerchosen);
+        require!(!token_lottery.winner_claimed,ErrorCode::Winnerchosen);
         let randomness_data=RandomnessAccountData::parse(ctx.accounts.randomness_account.data.borrow()).unwrap();
         let reveal_random_value=randomness_data.get_value(&clock).map_err(|_|ErrorCode::Randomessnotresolved)?;
        let winner=reveal_random_value[0] as u64 % token_lottery.total_tickets;
        token_lottery.winner=winner;
-        token_lottery.winner_choosen=true;
+        token_lottery.winner_claimed=true;
         Ok(())
     }
     pub fn claim_prize(ctx: Context<ClaimPrize>)->Result<()>{
-        require!(ctx.accounts.token_lottery.winner_choosen,ErrorCode::Winnernotchoosen);
+        require!(ctx.accounts.token_lottery.winner_claimed,ErrorCode::Winnernotchoosen);
         require!(ctx.accounts.ticket_metadata.collection.as_ref().unwrap().verified,ErrorCode:: NotverifiedTicket);
         require!(ctx.accounts.ticket_metadata.collection.as_ref().unwrap().key==ctx.accounts.collection_mint.key(),ErrorCode::Incorrectticket);
         let ticket_name=NAME.to_owned()+&ctx.accounts.token_lottery.winner.to_string();
@@ -180,21 +184,21 @@ pub mod token {
 }
 
 #[derive(Accounts)]
-pub struct Initialize<'info> {
+#[instruction(lottery_id:[u8; 32])]
+pub struct Initialize<'info> { 
     #[account(mut)]
     pub signer:Signer<'info>,
-    #[account(init,space=8+TokenLottery::INIT_SPACE,payer=signer,seeds=[b"token_lottery"],
+    #[account(init,space=1200,payer=signer,seeds=[b"token_lottery",signer.key().as_ref(),&lottery_id],
 bump)]
 pub token_lottery:Account<'info,TokenLottery>,
 pub system_program:Program<'info,System>
-
 }
 #[derive(Accounts)]
 pub struct ClaimPrize<'info>{
     #[account(mut)]
     pub payer:Signer<'info>,
     #[account(mut,
-    seeds=[b"token_lottery".as_ref()],
+    seeds=[b"token_lottery".as_ref(),payer.key().as_ref(),b"tests"],
     bump=token_lottery.bump
     )]
     pub token_lottery:Account<'info,TokenLottery>,
@@ -240,7 +244,7 @@ pub struct Buyticket<'info>{
     #[account(mut)]
     pub payer:Signer<'info>,
     #[account(mut,
-    seeds=[b"token_lottery".as_ref()],
+    seeds=[b"token_lottery".as_ref(),payer.key().as_ref(),b"tests"],
     bump=token_lottery.bump
     )]
     pub token_lottery:Account<'info,TokenLottery>,
@@ -319,16 +323,21 @@ pub struct  TokenLottery{
     pub ticket_price:u64,
     pub authority:Pubkey,
     pub randomness_account:Pubkey,
-    pub  winner_choosen:bool,
-   pub winner:u64
+    pub  winner_claimed:bool,
+   pub winner:u64,
      
+}
+#[account]
+pub struct   Lotteryid{
+    pub  id:u64,
+    pub bump:u8,
 }
 #[derive(Accounts)]
 pub struct  CommitRandomness<'info>{
     #[account(mut)]
     pub  payer:Signer<'info>,
     #[account(mut,
-        seeds=[b"token_lottery".as_ref()],
+        seeds=[b"token_lottery".as_ref(),payer.key().as_ref(),b"tests"],
         bump=token_lottery.bump)]
         pub token_lottery:Account<'info,TokenLottery>,
 /// CHECK:This account is checked by the SWitchboard smart contract
