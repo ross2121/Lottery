@@ -26,12 +26,8 @@ describe("Token Lottery Program",async () => {
   // })
 
   const getTokenLotteryInitPDA = async (lottery_id:String) => {
-    // const leBytes = new Uint8Array(8);
-    // new DataView(leBytes.buffer).setBigUint64(0, BigInt(looteryid), true);
     return await PublicKey.findProgramAddress(
-      [ Buffer.from("token_lottery"),
-        wallet.payer.publicKey.toBuffer(),
-        Buffer.from("test")],
+      [Buffer.from(lottery_id)],
       program.programId
     );
   };
@@ -77,31 +73,21 @@ describe("Token Lottery Program",async () => {
 
   describe("Initialize Token Lottery", () => {
     it("should initialize the token lottery with correct parameters", async () => {
-      const lotteryId = new Uint8Array(32);
-    // Fill first few bytes with your string (e.g., "sa")
-    lotteryId.set(Buffer.from("sa"), 0);
-
-    // Generate PDA
-    const [tokenLotteryPDA] = await PublicKey.findProgramAddress(
-        [
-            Buffer.from("token_lottery"),
-            wallet.payer.publicKey.toBuffer(),
-            lotteryId
-        ],
-        program.programId
-    );
-    const lotteryIdArray = Array.from(lotteryId);
-      // const [tokenLotteryPDA] = await getTokenLotteryInitPDA(2);
-      // const pdaaddress=await PublicKey.findProgramAddressSync([])
+      // Create a lottery ID as BN (u64)
+      const lotteryId ="testfshhhadfabcfcfghjgghjb";
+    
+       const temp="testdfffasdassd"
+      const [tokenLotteryPDA] = await getTokenLotteryInitPDA(lotteryId);
+      const [testpda]=PublicKey.findProgramAddressSync([Buffer.from(temp)],program.programId);
       console.log("Token Lottery PDA:", tokenLotteryPDA.toString());
-      const startTime = new anchor.BN(Math.floor(Date.now() / 1000));
+      console.log("Lottery ID:", lotteryId.toString());
+      
+      const startTime = new anchor.BN(1000);
       const endTime = new anchor.BN(12313);
       const ticketPrice = new anchor.BN(232);
       const tx = await program.methods.initialize(
-        startTime,
-        endTime,
-        ticketPrice,
-         lotteryIdArray
+        startTime,endTime,ticketPrice,
+        lotteryId 
       ).accountsStrict({
         signer: wallet.payer.publicKey,
         tokenLottery: tokenLotteryPDA,
@@ -354,13 +340,80 @@ describe("Token Lottery Program",async () => {
   // })
 });
 
-export async function loadSbProgram(
-  provider: anchor.Provider
-): Promise<any> {
-  // Import anchor-31 package specifically for Switchboard compatibility
-  const anchor31 = require('@coral-xyz/anchor-31');
-  const sbProgramId = await sb.getProgramId(provider.connection);
-  const sbIdl = await anchor31.Program.fetchIdl(sbProgramId, provider);
-  const sbProgram = new anchor31.Program(sbIdl!, provider);
-  return sbProgram;
-}
+// describe("Journal Entry Program", () => {
+//   const provider = anchor.AnchorProvider.env();
+//   anchor.setProvider(provider);
+//   const wallet = provider.wallet as anchor.Wallet;
+//   const program = anchor.workspace.token as Program<Token>;
+
+//   // Helper to derive the PDA for a journal entry
+//   const getJournalEntryPDA = async (title: string, owner: PublicKey) => {
+//     return await PublicKey.findProgramAddress(
+//       [Buffer.from(title), owner.toBuffer()],
+//       program.programId
+//     );
+//   };
+
+//   const testTitle = "Test Entry";
+//   const testMessage = "Hello, Journal!";
+//   const updatedMessage = "Updated message!";
+//   let journalEntryPDA: PublicKey;
+
+//   it("creates a journal entry", async () => {
+//     [journalEntryPDA] = await getJournalEntryPDA(testTitle, wallet.publicKey);
+//     const tx=await program.methods.createJournalEntry(testTitle, testMessage)
+//       .accountsStrict({
+//         journalEntry: journalEntryPDA,
+//         owner: wallet.publicKey,
+//         systemProgram: SystemProgram.programId,
+//       })
+//       .rpc();
+//       console.log("pda",journalEntryPDA.toString());
+//       console.log("txccc",tx);
+//     const entry = await program.account.journalEntryState.fetch(journalEntryPDA);
+//     expect(entry.owner.toString()).to.equal(wallet.publicKey.toString());
+//     expect(entry.title).to.equal(testTitle);
+//     expect(entry.message).to.equal(testMessage);
+//   });
+
+//   // it("updates a journal entry", async () => {
+//   //   await program.methods.updateJournalEntry(testTitle, updatedMessage)
+//   //     .accountsStrict({
+//   //       journalEntry: journalEntryPDA,
+//   //       owner: wallet.publicKey,
+//   //       systemProgram: SystemProgram.programId,
+//   //     })
+//   //     .rpc();
+//   //   const entry = await program.account.journalEntryState.fetch(journalEntryPDA);
+//   //   expect(entry.message).to.equal(updatedMessage);
+//   // });
+
+//   // it("deletes a journal entry", async () => {
+//   //   await program.methods.deleteJournalEntry(testTitle)
+//   //     .accountsStrict({
+//   //       journalEntry: journalEntryPDA,
+//   //       owner: wallet.publicKey,
+//   //       systemProgram: SystemProgram.programId,
+//   //     })
+//   //     .rpc();
+//   //   // After deletion, fetching should fail
+//   //   let err = null;
+//   //   try {
+//   //     await program.account.journalEntryState.fetch(journalEntryPDA);
+//   //   } catch (e) {
+//   //     err = e;
+//   //   }
+//   //   expect(err).to.not.be.null;
+//   // });
+// });
+
+// export async function loadSbProgram(
+//   provider: anchor.Provider
+// ): Promise<any> {
+//   // Import anchor-31 package specifically for Switchboard compatibility
+//   const anchor31 = require('@coral-xyz/anchor-31');
+//   const sbProgramId = await sb.getProgramId(provider.connection);
+//   const sbIdl = await anchor31.Program.fetchIdl(sbProgramId, provider);
+//   const sbProgram = new anchor31.Program(sbIdl!, provider);
+//   return sbProgram;
+// }
