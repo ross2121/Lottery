@@ -76,8 +76,10 @@ describe("Token Lottery Program",async () => {
       const startTime = new anchor.BN(1000);
       const endTime = new anchor.BN(12313);
       const ticketPrice = new anchor.BN(232);
+      const noOfTicket=new anchor.BN(2);
+
       const tx = await program.methods.initialize(
-        startTime, endTime, ticketPrice, lotteryId 
+        startTime, endTime, ticketPrice,noOfTicket, lotteryId 
       ).accountsStrict({
         signer: wallet.payer.publicKey,
         tokenLottery: tokenLotteryPDA,

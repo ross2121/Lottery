@@ -22,20 +22,22 @@ pub mod token {
 
 
     use super::*;
-    pub fn initialize(ctx: Context<Initialize>,start_time:u64,end:u64,price:u64,lottery_id:String) -> Result<()> {
+    pub fn initialize(ctx: Context<Initialize>,start_time:u64,end:u64,price:u64,no_of_ticket:u64,lottery_id:String) -> Result<()> {
         msg!("Lottery ID: {}", lottery_id);
         msg!("Signer: {}", ctx.accounts.signer.key());
         msg!("PDA: {}", ctx.accounts.token_lottery.key());
         
         ctx.accounts.token_lottery.bump=ctx.bumps.token_lottery;
        ctx.accounts.token_lottery.authority=*ctx.accounts.signer.key;
-      ctx.accounts.token_lottery.end_time=23;
-      ctx.accounts.token_lottery.start_time=23;
-      ctx.accounts.token_lottery.ticket_price=123;
+      ctx.accounts.token_lottery.end_time=end;
+      ctx.accounts.token_lottery.start_time=start_time;
+      ctx.accounts.token_lottery.no_of_ticket=no_of_ticket;
+      ctx.accounts.token_lottery.ticket_price=price;
       ctx.accounts.token_lottery.winner = 0;
       ctx.accounts.token_lottery.total_tickets = 0; 
       ctx.accounts.token_lottery.lottery_id = lottery_id;
       ctx.accounts.token_lottery.lootery_pot_amount = 0;
+
       ctx.accounts.token_lottery.winner_claimed=false;
       ctx.accounts.token_lottery.randomness_account=Pubkey::default();
         Ok(())
@@ -45,6 +47,7 @@ pub mod token {
         let clock=Clock::get()?;
         let ticket_name=NAME.to_owned()+ctx.accounts.token_lottery.total_tickets.to_string().as_str();
         ctx.accounts.token_lottery.winner = 0;
+        require!(ctx.accounts.token_lottery.no_of_ticket!=ctx.accounts.token_lottery.total_tickets,ErrorCode::Contestisfull);
         // if(clock.slot<ctx.accounts.token_lottery.start_time||clock.slot>ctx.accounts.token_lottery.end_time){
         //     return  Err(ErrorCode:: LotteryNotOpen.into());
         // }
@@ -192,7 +195,7 @@ pub mod token {
 
 
 #[derive(Accounts)]
-#[instruction(start_time:u64,end:u64,price:u64,lottery_id:String)]
+#[instruction(start_time:u64,end:u64,price:u64,no_of_ticket:u64,lottery_id:String)]
 pub struct Initialize<'info> { 
     #[account(mut)]
     pub signer: Signer<'info>,
@@ -335,6 +338,7 @@ pub struct  TokenLottery{
     pub randomness_account:Pubkey,
     pub  winner_claimed:bool,
    pub winner: u64,
+   pub no_of_ticket:u64,
    #[max_len(45)]
    pub lottery_id: String,
 }
@@ -437,5 +441,8 @@ pub enum  ErrorCode {
      #[msg("Ticket is not a part of collection")]
      NotverifiedTicket,
      #[msg("Incorrect Ticket")]
-     Incorrectticket
+     Incorrectticket,
+     #[msg("Contest is full")]
+      Contestisfull
+
 }
