@@ -19,7 +19,7 @@ describe("Token Lottery Program",async () => {
   console.log("Program ID:", program.programId.toString());
   console.log("Wallet Public Key:", wallet.publicKey.toString());
 
-  const lotteryId = "123";
+  const lotteryId = "12asd3";
 
   const getTokenLotteryInitPDA = async (lottery_id: string) => {
     return await PublicKey.findProgramAddress(
@@ -72,12 +72,11 @@ describe("Token Lottery Program",async () => {
       const [tokenLotteryPDA] = await getTokenLotteryInitPDA(lotteryId);
       console.log("Token Lottery PDA:", tokenLotteryPDA.toString());
       console.log("Lottery ID:", lotteryId.toString());
-      
+     
       const startTime = new anchor.BN(1000);
       const endTime = new anchor.BN(12313);
       const ticketPrice = new anchor.BN(232);
       const noOfTicket=new anchor.BN(2);
-
       const tx = await program.methods.initialize(
         startTime, endTime, ticketPrice,noOfTicket, lotteryId 
       ).accountsStrict({
@@ -115,6 +114,9 @@ describe("Token Lottery Program",async () => {
 
   describe("Initialize Lottery Collection", () => {
     it("should initialize the lottery collection with metadata", async () => {
+      const name="Testy";
+      const sym="dasd";
+      const uri="uri"
       const [collectionMintPDA] = await getCollectionMintPDA(lotteryId);
       console.log("Collection Mint PDA:", collectionMintPDA.toString());
       
@@ -130,7 +132,7 @@ describe("Token Lottery Program",async () => {
       });
       console.log("Collection Token Account:", collectionToken.toString());
 
-      const initLottery = await program.methods.initializeLottery(lotteryId).accountsStrict({
+      const initLottery = await program.methods.initializeLottery(lotteryId,name,sym,uri).accountsStrict({
         signer: wallet.publicKey,
         collectionMint: collectionMintPDA,
         collectionToken: collectionToken,
@@ -227,14 +229,11 @@ describe("Token Lottery Program",async () => {
           feePayer: wallet.publicKey,
           lastValidBlockHeight: blockhash.lastValidBlockHeight
         }).add(buyTicket).add(computeTx).add(priortiytx);
-
         const signature = await anchor.web3.sendAndConfirmTransaction(
           provider.connection,
           tx,
           [wallet.payer]
         );
-
-
         const ticketAccount = await provider.connection.getTokenAccountBalance(destination);
         console.log(`Ticket #${i + 1} Token Balance:`, ticketAccount.value.amount);
         expect(ticketAccount.value.amount).to.equal("1");

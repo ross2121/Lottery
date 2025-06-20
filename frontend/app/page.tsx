@@ -14,7 +14,8 @@ import {
   Gift,
   Timer,
   TrendingUp,
-  Wallet
+  Wallet,
+  Plus
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -28,6 +29,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { ThemeSwitcher, CompactThemeSwitcher } from "@/components/theme/theme-switcher";
 import { useTheme } from "@/components/theme/theme-provider";
+import Link from "next/link";
 
 export default function LotteryPage() {
   const [ticketAmount, setTicketAmount] = useState(1);
@@ -98,6 +100,13 @@ export default function LotteryPage() {
                 <div className="hidden md:block">
                   <ThemeSwitcher />
                 </div>
+                
+                <Link href="/create">
+                  <Button variant="outline" className="border-white/20 hover:border-white/40 bg-white/5 backdrop-blur-sm">
+                    <Plus className="w-4 h-4 mr-2" />
+                    Create Lottery
+                  </Button>
+                </Link>
                 
                 <Button className={`bg-gradient-to-r ${themeConfig.primary} hover:opacity-90 transition-opacity`}>
                   <Wallet className="w-4 h-4 mr-2" />

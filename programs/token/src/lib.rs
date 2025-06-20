@@ -26,7 +26,6 @@ pub mod token {
         msg!("Lottery ID: {}", lottery_id);
         msg!("Signer: {}", ctx.accounts.signer.key());
         msg!("PDA: {}", ctx.accounts.token_lottery.key());
-        
         ctx.accounts.token_lottery.bump=ctx.bumps.token_lottery;
        ctx.accounts.token_lottery.authority=*ctx.accounts.signer.key;
       ctx.accounts.token_lottery.end_time=end;
@@ -143,9 +142,8 @@ pub mod token {
         Ok(())
     }
     
-    pub fn initialize_lottery(ctx: Context<InitializeToken>, lottery_id: String) -> Result<()> {
+    pub fn initialize_lottery(ctx: Context<InitializeToken>, lottery_id: String,name:String,uri:String,symbol:String) -> Result<()> {
           let signer_seeds:&[&[&[u8]]]=&[&[b"collectionmint", lottery_id.as_bytes(), &[ctx.bumps.collection_mint]]];
-        
           mint_to(
             CpiContext::new_with_signer(ctx.accounts.token_program.to_account_info(),
              MintTo{
@@ -161,9 +159,9 @@ pub mod token {
                      system_program:ctx.accounts.system_program.to_account_info(),
                      rent:ctx.accounts.rent.to_account_info()
                 }, signer_seeds),DataV2{
-                         name:NAME.to_string(),
-                         symbol:SYMBOL.to_string(),
-                         uri:URI.to_string(),
+                         name:name.to_string(),
+                         symbol:symbol.to_string(),
+                         uri:uri.to_string(),
                          seller_fee_basis_points:0,
                          creators:Some(vec![Creator {
                             address:ctx.accounts.collection_mint.key(),

@@ -181,7 +181,7 @@ export function CompactCountdown({ endTime }: { endTime: Date }) {
       }
     };
 
-    const timer = setInterval(updateTimer, 60000); // Update every minute
+    const timer = setInterval(updateTimer, 60000); 
     updateTimer();
 
     return () => clearInterval(timer);
