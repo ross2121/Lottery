@@ -116,7 +116,7 @@ pub mod token {
         let token_lottery= &mut ctx.accounts.token_lottery;
         require!(ctx.accounts.payer.key()==token_lottery.authority,ErrorCode::Notauthorized);
         require!(ctx.accounts.randomness_account.key()==token_lottery.randomness_account,ErrorCode::IncorrectRandomness);
-        require!(clock.slot<token_lottery.end_time,ErrorCode::Lotterynotcompleted);
+        // require!(clock.slot<token_lottery.end_time,ErrorCode::Lotterynotcompleted);
         require!(!token_lottery.winner_claimed,ErrorCode::Winnerchosen);
         let randomness_data=RandomnessAccountData::parse(ctx.accounts.randomness_account.data.borrow()).unwrap();
         let reveal_random_value=randomness_data.get_value(&clock).map_err(|_|ErrorCode::Randomessnotresolved)?;

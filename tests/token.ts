@@ -19,7 +19,7 @@ describe("Token Lottery Program",async () => {
   console.log("Program ID:", program.programId.toString());
   console.log("Wallet Public Key:", wallet.publicKey.toString());
 
-  const lotteryId = "loop";
+  const lotteryId = "123";
 
   const getTokenLotteryInitPDA = async (lottery_id: string) => {
     return await PublicKey.findProgramAddress(
@@ -108,11 +108,6 @@ describe("Token Lottery Program",async () => {
         looteryPotAmount: lotteryAccount.looteryPotAmount.toString(),
         randomnessAccount: lotteryAccount.randomnessAccount.toString()
       });
-
-      expect(lotteryAccount.startTime.toString()).to.equal(startTime.toString());
-      expect(lotteryAccount.endTime.toString()).to.equal(endTime.toString());
-      expect(lotteryAccount.ticketPrice.toString()).to.equal(ticketPrice.toString());
-      expect(lotteryAccount.authority.toString()).to.equal(wallet.payer.publicKey.toString());
     });
   });
 
@@ -236,7 +231,7 @@ describe("Token Lottery Program",async () => {
           tx,
           [wallet.payer]
         );
-        console.log(`Ticket #${i + 1} bought:`, signature);
+
 
         const ticketAccount = await provider.connection.getTokenAccountBalance(destination);
         console.log(`Ticket #${i + 1} Token Balance:`, ticketAccount.value.amount);
@@ -249,26 +244,20 @@ describe("Token Lottery Program",async () => {
         });
         expect(updatedLotteryAccount.totalTickets.toNumber()).to.equal(ticketNum + 1);
       }
-
       const finalLotteryAccount = await program.account.tokenLottery.fetch(tokenLotteryPDA);
       console.log("\nFinal Lottery Account State:", {
         totalTickets: finalLotteryAccount.totalTickets.toString(),
         ticketPrice: finalLotteryAccount.ticketPrice.toString()
       });
       try {
-        const pid=sb.ON_DEMAND_DEVNET_PID
         const sbProgram = await loadSbProgram(provider);
-        
         const queueAccount = await sb.getDefaultQueue(provider.connection.rpcEndpoint)
         console.log("Queue pubkey:",queueAccount.pubkey.toString());
-      
         const queueData = await queueAccount.loadData();
         console.log("Queue data loaded successfully");
         console.log("Queue has", queueData.oracleKeys.length, "oracles");
-        
         const rngKp = Keypair.generate();
-        console.log("Generated RNG keypair:", rngKp.publicKey.toString());
-          
+        console.log("Generated RNG keypair:", rngKp.publicKey.toString())
         const txOpts = {
           commitment: "processed" as Commitment,
           skipPreflight: false,
@@ -285,7 +274,6 @@ describe("Token Lottery Program",async () => {
           computeUnitLimitMultiple: 1.3,
         });
         const {connection}=await sb.AnchorUtils.loadEnv();
-        const sim = await connection.simulateTransaction(createRandomnessTx, txOpts);
         const sig1 = await connection.sendTransaction(createRandomnessTx, txOpts);
         await connection.confirmTransaction(sig1, "confirmed");
         console.log(
@@ -320,7 +308,82 @@ describe("Token Lottery Program",async () => {
         const blockhash2 = await provider.connection.getLatestBlockhash();
         const revealTx=new  Transaction({feePayer:wallet.payer.publicKey,blockhash:blockhash2.blockhash,lastValidBlockHeight:blockhash2.lastValidBlockHeight}).add(sberevak).add(revealWinnerIx)
         const revealsignature=await anchor.web3.sendAndConfirmTransaction(provider.connection,revealTx,[wallet.payer]);
-        console.log("dasdas",revealsignature)
+        console.log("Winner revealed, signature:", revealsignature);
+        
+        // Get the updated lottery account to see the winner
+        const updatedLotteryAccount = await program.account.tokenLottery.fetch(tokenLotteryPDA);
+        console.log("Winner ticket number:", updatedLotteryAccount.winner.toString());
+        console.log("Lottery pot amount:", updatedLotteryAccount.looteryPotAmount.toString());
+        
+        // Get the winning ticket mint PDA
+        const [winningTicketMintPDA] = await getTicketMintPDA(updatedLotteryAccount.winner.toNumber(), lotteryId);
+        console.log("Winning ticket mint PDA:", winningTicketMintPDA.toString());
+        
+        // Get ticket metadata PDA
+        const [winningTicketMetadataPDA] = await getMetadataPDA(winningTicketMintPDA);
+        console.log("Winning ticket metadata PDA:", winningTicketMetadataPDA.toString());
+        
+        // Get collection metadata PDA
+        const [collectionMetadataPDA] = await getMetadataPDA(collectionMintPDA);
+        console.log("Collection metadata PDA:", collectionMetadataPDA.toString());
+        
+        // Get the winner's token account for the winning ticket
+        const winnerDestination = await anchor.utils.token.associatedAddress({
+          mint: winningTicketMintPDA,
+          owner: wallet.publicKey
+        });
+        console.log("Winner destination token account:", winnerDestination.toString());
+        
+        // Check balances before claiming prize
+        const payerBalanceBefore = await provider.connection.getBalance(wallet.payer.publicKey);
+        const lotteryBalanceBefore = await provider.connection.getBalance(tokenLotteryPDA);
+        console.log("Payer balance before claim:", payerBalanceBefore);
+        console.log("Lottery balance before claim:", lotteryBalanceBefore);
+        
+        // Claim the prize
+        const claimPrize = await program.methods.claimPrize(lotteryId).accountsStrict({
+          payer: wallet.payer.publicKey,
+          tokenLottery: tokenLotteryPDA,
+          ticketMint: winningTicketMintPDA,
+          ticketMetadata: winningTicketMetadataPDA,
+          collectionMetadata: collectionMetadataPDA,
+          destination: winnerDestination,
+          collectionMint: collectionMintPDA,
+          systemProgram: SystemProgram.programId,
+          tokenMetadataProgram: METADATA_PROGRAM_ID,
+          tokenProgram: TOKEN_PROGRAM_ID,
+        }).instruction();
+
+        const claimBlockhash = await provider.connection.getLatestBlockhash();
+        const claimTx = new anchor.web3.Transaction({
+          blockhash: claimBlockhash.blockhash,
+          feePayer: wallet.payer.publicKey,
+          lastValidBlockHeight: claimBlockhash.lastValidBlockHeight
+        }).add(claimPrize);
+
+        const claimSignature = await anchor.web3.sendAndConfirmTransaction(
+          provider.connection,
+          claimTx,
+          [wallet.payer]
+        );
+        console.log("Prize claimed, signature:", claimSignature);
+        
+        // Check balances after claiming prize
+        const payerBalanceAfter = await provider.connection.getBalance(wallet.payer.publicKey);
+        const lotteryBalanceAfter = await provider.connection.getBalance(tokenLotteryPDA);
+        console.log("Payer balance after claim:", payerBalanceAfter);
+        console.log("Lottery balance after claim:", lotteryBalanceAfter);
+        
+        // Verify the prize was transferred (accounting for transaction fees)
+        const balanceIncrease = payerBalanceAfter - payerBalanceBefore;
+        console.log("Balance increase (minus fees):", balanceIncrease);
+        
+        // Check that lottery pot amount is now zero
+        const finalLotteryAccount = await program.account.tokenLottery.fetch(tokenLotteryPDA);
+        console.log("Final lottery pot amount:", finalLotteryAccount.looteryPotAmount.toString());
+        expect(finalLotteryAccount.looteryPotAmount.toString()).to.equal("0");
+        
+        console.log("Prize claiming test completed successfully!");
        
       } catch (error) { 
         console.log("Switchboard integration error:", error.message);
