@@ -28,10 +28,15 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { ThemeSwitcher, CompactThemeSwitcher } from "@/components/theme/theme-switcher";
+import '@solana/wallet-adapter-react-ui/styles.css';
 import { useTheme } from "@/components/theme/theme-provider";
 import Link from "next/link";
+import { ConnectionProvider, WalletProvider } from "@solana/wallet-adapter-react";
+import { WalletModalProvider, WalletMultiButton } from "@solana/wallet-adapter-react-ui";
+import { PhantomWalletAdapter, SolflareWalletAdapter } from "@solana/wallet-adapter-wallets";
+import { clusterApiUrl } from "@solana/web3.js";
 
-export default function LotteryPage() {
+function LotteryPageContent() {
   const [ticketAmount, setTicketAmount] = useState(1);
   const [selectedLottery, setSelectedLottery] = useState("active");
   const { themeConfig } = useTheme();
@@ -108,10 +113,8 @@ export default function LotteryPage() {
                   </Button>
                 </Link>
                 
-                <Button className={`bg-gradient-to-r ${themeConfig.primary} hover:opacity-90 transition-opacity`}>
-                  <Wallet className="w-4 h-4 mr-2" />
-                  Connect Wallet
-                </Button>
+                {/* Wallet Connection */}
+                <WalletMultiButton className="!bg-gradient-to-r !from-purple-500 !to-blue-600 hover:!opacity-90 !transition-opacity !border-none" />
               </motion.div>
             </div>
           </div>
@@ -485,5 +488,26 @@ export default function LotteryPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function LotteryPage() {
+  // Configure wallets
+  const wallets = [
+    new PhantomWalletAdapter(),
+    new SolflareWalletAdapter(),
+  ];
+
+  // Network endpoint
+  const endpoint = clusterApiUrl('devnet');
+
+  return (
+    <ConnectionProvider endpoint={endpoint}>
+      <WalletProvider wallets={wallets} autoConnect>
+        <WalletModalProvider>
+          <LotteryPageContent />
+        </WalletModalProvider>
+      </WalletProvider>
+    </ConnectionProvider>
   );
 }

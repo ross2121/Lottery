@@ -23,10 +23,14 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import {PublicKey} from "@solana/web3.js";
+import {Connection, PublicKey, SystemProgram, SYSVAR_RENT_PUBKEY} from "@solana/web3.js";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { getProgram } from "@/utlis/smartcontract";
+import { useAnchorWallet } from "@solana/wallet-adapter-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import React from "react";
+import * as anchor from "@project-serum/anchor";
+import { TOKEN_PROGRAM_ID } from "@coral-xyz/anchor/dist/cjs/utils/token";
 
 interface LotteryConfig {
   lotteryId: string;
@@ -40,6 +44,8 @@ interface LotteryConfig {
 
 export function CreateLottery() {
   const { themeConfig } = useTheme();
+  const wallet = useAnchorWallet();
+  
   const [config, setConfig] = useState<LotteryConfig>({
     lotteryId: "",
     startTime: "",
@@ -53,6 +59,8 @@ export function CreateLottery() {
   const [currentStep, setCurrentStep] = useState(1);
   const [isCreating, setIsCreating] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const METADATA_PROGRAM_ID = new PublicKey("metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s");
+   const ASSOCIATED_TOKEN_PROGRAM_ID = new PublicKey('ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL');
 
   const validateStep = (step: number): boolean => {
     const newErrors: Record<string, string> = {};
@@ -105,29 +113,109 @@ export function CreateLottery() {
     setIsCreating(true);
     try {
       console.log("Creating lottery with config:", config);
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      const program=new PublicKey("4dMKk1DAkpifRnSWGVEjUKjNBAU8SDiPqfddGPqNeM7G");
-      const getTokenLotteryInitPDA = async (lottery_id: string) => {
-        return await PublicKey.findProgramAddress(
-          [Buffer.from(lottery_id)],
-          program
-        );
-      };
-      const [tokenLotteryPDA] = await getTokenLotteryInitPDA(config.lotteryId);
-    //   const tx=await
-       
-    //   const startTime = new anchor.BN(1000);
-    //   const endTime = new anchor.BN(12313);
-    //   const ticketPrice = new anchor.BN(232);
-    //   const noOfTicket=new anchor.BN(2);
-    //   const tx = await program.methods.initialize(
-    //     startTime, endTime, ticketPrice,noOfTicket, lotteryId 
-    //   ).accountsStrict({
-    //     signer: wallet.payer.publicKey,
-    //     tokenLottery: tokenLotteryPDA,
-    //     systemProgram: SystemProgram.programId,
-    //   }).instruction();
+      if (!wallet) {
+        alert("Please connect your wallet first!");
+        return;
+      }
+      const program = getProgram(wallet);
+      if (!program) {
+        alert("Failed to initialize program. Please try again.");
+        return;
+      }
+      const programId = new PublicKey("4dMKk1DAkpifRnSWGVEjUKjNBAU8SDiPqfddGPqNeM7G");
+      const [tokenLotteryPDA] = await PublicKey.findProgramAddress(
+        [Buffer.from(config.lotteryId)],
+        programId
+      );
+      const startTimeDate = new Date(config.startTime);
+      const endTimeDate = new Date(config.endTime);
+      const startTime = new anchor.BN(Math.floor(startTimeDate.getTime() / 1000));
+      const endTime = new anchor.BN(Math.floor(endTimeDate.getTime() / 1000));
+      const ticketPriceSOL = parseFloat(config.ticketPrice) || 0;
+      const ticketPrice = new anchor.BN(ticketPriceSOL * 1_000_000_000);
+      const noOfTicket = new anchor.BN(parseInt(config.maxTickets) || 0);
+      const lotteryId = config.lotteryId;
+      const tx = await program.methods.initialize(
+        startTime, endTime, ticketPrice, noOfTicket, lotteryId 
+      ).accountsStrict({
+        signer: wallet.publicKey,
+        tokenLottery: tokenLotteryPDA,
+        systemProgram: SystemProgram.programId,
+      }).rpc();
+                                                        
+  const getCollectionMintPDA = async (lottery_id: string) => {                                                                                           
+    return await PublicKey.findProgramAddress(
+      [Buffer.from("collectionmint"), Buffer.from(lottery_id)],
+      program.programId
+    );
+  };
+
+  const getMasterEditionPDA = async (mint: PublicKey) => {
+    return await PublicKey.findProgramAddress(
+      [
+        Buffer.from("metadata"),
+        METADATA_PROGRAM_ID.toBuffer(),
+        mint.toBuffer(),
+        Buffer.from("edition"),
+      ],
+      METADATA_PROGRAM_ID
+    );
+  };
+  const getTicketMintPDA = async (ticketNum: number, lottery_id: string) => {
+    const leBytes = new Uint8Array(8);
+    new DataView(leBytes.buffer).setBigUint64(0, BigInt(ticketNum), true);
+    return await PublicKey.findProgramAddress(
+      [leBytes, Buffer.from(lottery_id)],
+      program.programId
+    );
+  };
+
+  const getMetadataPDA = async (mint: PublicKey) => {
+    return await PublicKey.findProgramAddress(
+      [
+        Buffer.from("metadata"),
+        METADATA_PROGRAM_ID.toBuffer(),
+        mint.toBuffer(),
+      ],
+      METADATA_PROGRAM_ID
+    );
+  };
+  const name="Tdasdesty";
+  const sym="dadasdsd";
+  const uri="urasdsi"
+  const [collectionMintPDA] = await getCollectionMintPDA(lotteryId);
+  console.log("Collection Mint PDA:", collectionMintPDA.toString());
+  
+  const [metadataPDA] = await getMetadataPDA(collectionMintPDA);
+  console.log("Collection Metadata PDA:", metadataPDA.toString());
+  
+  const [masterEditionPDA] = await getMasterEditionPDA(collectionMintPDA);
+  console.log("Collection Master Edition PDA:", masterEditionPDA.toString());
+  
+  const collectionToken = await anchor.utils.token.associatedAddress({
+    mint: collectionMintPDA,
+    owner: wallet.publicKey
+  });
+  console.log("Collection Token Account:", collectionToken.toString());
+
+  const initLottery = await program.methods.initializeLottery(lotteryId,name,sym,uri).accountsStrict({
+    signer: wallet.publicKey,
+    collectionMint: collectionMintPDA,
+    collectionToken: collectionToken,
+    metadata: metadataPDA,
+    masterEdition: masterEditionPDA,
+    tokenProgram: TOKEN_PROGRAM_ID,
+    associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
+    tokenMetadataProgram: METADATA_PROGRAM_ID,
+    systemProgram: SystemProgram.programId,
+    rent: SYSVAR_RENT_PUBKEY,
+  }).rpc();
+console.log("dasd");
+      console.log("Token lottery initialized:", tx);
+      console.log("dasddasd");
+      console.log("final",initLottery);
       alert("Lottery created successfully!");
+      
     } catch (error) {
       console.error("Error creating lottery:", error);
       alert("Failed to create lottery. Please try again.");
